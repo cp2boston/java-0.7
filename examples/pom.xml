@@ -11,7 +11,7 @@
     <groupId>com.basistech.rosette</groupId>
     <artifactId>rosette-api-examples</artifactId>
     <name>rosette-api-examples</name>
-    <version>0.5.0-SNAPSHOT</version>
+    <version>0.5.0</version>
     <properties>
         <assembly.skipAssembly>true</assembly.skipAssembly>
         <maven.javadoc.skip>true</maven.javadoc.skip>
