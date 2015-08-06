@@ -21,8 +21,8 @@
     <scm>
         <connection>scm:git:git@github.com:rosette-api/java.git</connection>
         <developerConnection>scm:git:git@github.com:rosette-api/java.git</developerConnection>
-      <tag>HEAD</tag>
-  </scm>
+        <tag>HEAD</tag>
+    </scm>
     <distributionManagement>
         <site>
             <id>site</id>
