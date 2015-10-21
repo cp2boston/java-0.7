@@ -109,7 +109,7 @@ public class RosetteAPITest extends Assert {
     }
 
     @Before
-    public void setUp() throws IOException, InterruptedException {
+    public void setUp() throws IOException, InterruptedException, RosetteAPIException {
         try {
             language = LanguageCode.valueOf(testFilename.substring(0, 3));
         } catch (IllegalArgumentException e) {
@@ -120,33 +120,48 @@ public class RosetteAPITest extends Assert {
         try (InputStream bodyStream = getClass().getClassLoader().getResourceAsStream(
                      "mock-data/response/" + testFilename);
              InputStream statusStream = getClass().getClassLoader().getResourceAsStream(
-                     "mock-data/response/" + statusFilename)) {
+                     "mock-data/response/" + statusFilename);
+             InputStream infoStream = getClass().getClassLoader().getResourceAsStream(
+                     "mock-data/response/info.json")
+        ) {
             responseStr = getStringFromInputStream(bodyStream);
             int statusCode = 200;
+
+
             if (statusStream != null) {
                 String statusStr = getStringFromInputStream(statusStream);
                 statusCode = Integer.parseInt(statusStr);
             }
+
+            MockServerClient mockServerClient = new MockServerClient("localhost", serverPort);
+            mockServerClient
+                    .reset()
+                    .when(HttpRequest.request()
+                            .withPath("/rest/v1/info")
+                            .withQueryStringParameter("clientVersion", ".+"))
+                    .respond(HttpResponse.response()
+                            .withStatusCode(200)
+                            .withHeader("Content-Type", "application/json")
+                            .withBody(getStringFromInputStream(infoStream), StandardCharsets.UTF_8));
+
             if (responseStr.length() > 200) {  // test gzip if response is somewhat big
-                new MockServerClient("localhost", serverPort)
-                        .reset()
-                        .when(HttpRequest.request().withPath("/.*"))
+                mockServerClient
+                        .when(HttpRequest.request())
                         .respond(HttpResponse.response()
                                 .withHeader("Content-Type", "application/json")
                                 .withHeader("Content-Encoding", "gzip")
                                 .withStatusCode(statusCode).withBody(gzip(responseStr)));
+                
             } else {
-                new MockServerClient("localhost", serverPort)
-                        .reset()
-                        .when(HttpRequest.request().withPath("/.*"))
+                mockServerClient
+                        .when(HttpRequest.request())
                         .respond(HttpResponse.response()
                                 .withHeader("Content-Type", "application/json")
                                 .withStatusCode(statusCode).withBody(responseStr, StandardCharsets.UTF_8));
             }
 
             String mockServiceUrl = "http://localhost:" + serverPort + "/rest/v1";
-            api = new RosetteAPI("my-key-123");
-            api.setUrlBase(mockServiceUrl);
+            api = new RosetteAPI("my-key-123", mockServiceUrl);
         }
     }
 
