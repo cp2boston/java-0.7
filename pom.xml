@@ -40,6 +40,8 @@
     </properties>
     <modules>
         <module>api</module>
+        <module>model</module>
+        <module>json</module>
     </modules>
     <dependencyManagement>
         <dependencies>
