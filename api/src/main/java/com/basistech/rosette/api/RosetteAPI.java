@@ -52,6 +52,9 @@ import com.basistech.rosette.apimodel.NameTranslationRequest;
 import com.basistech.rosette.apimodel.NameTranslationResponse;
 import com.basistech.rosette.apimodel.PingResponse;
 import com.basistech.rosette.apimodel.Response;
+import com.basistech.rosette.apimodel.RelationshipOptions;
+import com.basistech.rosette.apimodel.RelationshipsRequest;
+import com.basistech.rosette.apimodel.RelationshipsResponse;
 import com.basistech.rosette.apimodel.SentencesResponse;
 import com.basistech.rosette.apimodel.SentimentOptions;
 import com.basistech.rosette.apimodel.SentimentRequest;
@@ -74,6 +77,7 @@ public final class RosetteAPI {
     private static final String ENTITIES_SERVICE_PATH = "/entities";
     private static final String ENTITIES_LINKED_SERVICE_PATH = "/entities/linked";
     private static final String CATEGORIES_SERVICE_PATH = "/categories";
+    private static final String RELATIONSHIPS_SERVICE_PATH = "/relationships";
     private static final String SENTIMENT_SERVICE_PATH = "/sentiment";
     private static final String TRANSLATED_NAME_SERVICE_PATH = "/translated-name";
     private static final String MATCHED_NAME_SERVICE_PATH = "/matched-name";
@@ -121,7 +125,10 @@ public final class RosetteAPI {
      * @throws IOException General IO exception
      */
     public RosetteAPI(String key) throws IOException, RosetteAPIException {
-        this(key, DEFAULT_URL_BASE);
+        this.key = key;
+        this.failureRetries = 1;
+        mapper = ApiModelMixinModule.setupObjectMapper(new ObjectMapper());
+        checkVersionCompatibility();
     }
 
     /**
@@ -129,13 +136,16 @@ public final class RosetteAPI {
      * alternate URL for testing purposes.
      *
      * @param key Rosette API key
+     * @param alternateUrl Alternate Rosette API URL
      */
-    public RosetteAPI(String key, String alternateUrl) throws IOException, RosetteAPIException {
+    public RosetteAPI(String key, String alternateUrl) {
         urlBase = alternateUrl;
+        if (!urlBase.endsWith("/")) {
+            urlBase += "/";
+        }
         this.key = key;
         this.failureRetries = 1;
         mapper = ApiModelMixinModule.setupObjectMapper(new ObjectMapper());
-        checkVersionCompatibility();
     }
 
     /**
@@ -180,13 +190,17 @@ public final class RosetteAPI {
      * @throws RosetteAPIException
      */
     private boolean checkVersionCompatibility() throws IOException, RosetteAPIException {
-        InfoResponse response = sendPostRequest("", urlBase + VERSION_CHECK_PATH, InfoResponse.class);
-        if (!response.isVersionChecked()) {
-            ErrorResponse errResponse = new ErrorResponse("0", "incompatibleVersion",
-                    "The server version is not compatible with client binding version " + BINDING_VERSION);
-            throw new RosetteAPIException(400, errResponse);
+        try {
+            InfoResponse response = sendPostRequest("{ body: 'version check' }", urlBase + VERSION_CHECK_PATH, InfoResponse.class);
+            if (!response.isVersionChecked()) {
+                ErrorResponse errResponse = new ErrorResponse("0", "incompatibleVersion",
+                        "The server version is not compatible with binding version " + BINDING_VERSION);
+                throw new RosetteAPIException(200, errResponse);
+            }
+            return true;
+        } catch (RosetteAPIException e) {
+            throw e;
         }
-        return true;
     }
 
     /**
@@ -218,7 +232,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public NameTranslationResponse translateName(NameTranslationRequest request)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         return sendPostRequest(request, urlBase + TRANSLATED_NAME_SERVICE_PATH, NameTranslationResponse.class);
     }
 
@@ -232,7 +246,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public LanguageResponse getLanguage(InputStream inputStream, LanguageOptions options)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         String encodedStr = DatatypeConverter.printBase64Binary(getBytes(inputStream));
         LanguageRequest request = new LanguageRequest(encodedStr, null, "text/html", null, options);
         return sendPostRequest(request, urlBase + LANGUAGE_SERVICE_PATH, LanguageResponse.class);
@@ -262,7 +276,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public LanguageResponse getLanguage(String content, LanguageOptions options)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         LanguageRequest request = new LanguageRequest(content, null, null, null, options);
         return sendPostRequest(request, urlBase + LANGUAGE_SERVICE_PATH, LanguageResponse.class);
     }
@@ -279,7 +293,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public LanguageResponse getLanguage(String content, InputUnit unit, LanguageOptions options)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         LanguageRequest request = new LanguageRequest(content, null, null, unit, options);
         return sendPostRequest(request, urlBase + LANGUAGE_SERVICE_PATH, LanguageResponse.class);
     }
@@ -298,7 +312,7 @@ public final class RosetteAPI {
      */
     public MorphologyResponse getMorphology(MorphologicalFeature morphologicalFeature, InputStream inputStream,
                                             LanguageCode language, MorphologyOptions options)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         String encodedStr = DatatypeConverter.printBase64Binary(getBytes(inputStream));
         MorphologyRequest request = new MorphologyRequest(language, encodedStr, null, "text/html", null, options);
         return sendPostRequest(request, urlBase + MORPHOLOGY_SERVICE_PATH + morphologicalFeature.toString(),
@@ -338,7 +352,7 @@ public final class RosetteAPI {
      */
     public MorphologyResponse getMorphology(MorphologicalFeature morphologicalFeature, String content,
                                             LanguageCode language, MorphologyOptions options)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         MorphologyRequest request = new MorphologyRequest(language, content, null, null, null, options);
         return sendPostRequest(request, urlBase + MORPHOLOGY_SERVICE_PATH + morphologicalFeature.toString(),
                 MorphologyResponse.class);
@@ -360,7 +374,7 @@ public final class RosetteAPI {
      */
     public MorphologyResponse getMorphology(MorphologicalFeature morphologicalFeature, String content,
                                             LanguageCode language, InputUnit unit, MorphologyOptions options)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         MorphologyRequest request = new MorphologyRequest(language, content, null, null, unit, options);
         return sendPostRequest(request, urlBase + MORPHOLOGY_SERVICE_PATH + morphologicalFeature.toString(),
                 MorphologyResponse.class);
@@ -383,7 +397,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public EntitiesResponse getEntities(InputStream inputStream, LanguageCode language, EntitiesOptions options)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         String encodedStr = DatatypeConverter.printBase64Binary(getBytes(inputStream));
         EntitiesRequest request = new EntitiesRequest(language, encodedStr, null, "text/html", null, options);
         return sendPostRequest(request, urlBase + ENTITIES_SERVICE_PATH, EntitiesResponse.class);
@@ -406,7 +420,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public EntitiesResponse getEntities(URL url, LanguageCode language, EntitiesOptions options)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         EntitiesRequest request = new EntitiesRequest(language, null, url.toString(), null, null, options);
         return sendPostRequest(request, urlBase + ENTITIES_SERVICE_PATH, EntitiesResponse.class);
     }
@@ -428,7 +442,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public EntitiesResponse getEntities(String content, LanguageCode language, EntitiesOptions options)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         EntitiesRequest request = new EntitiesRequest(language, content, null, null, null, options);
         return sendPostRequest(request, urlBase + ENTITIES_SERVICE_PATH, EntitiesResponse.class);
     }
@@ -452,7 +466,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public EntitiesResponse getEntities(String content, LanguageCode language, InputUnit unit, EntitiesOptions options)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         EntitiesRequest request = new EntitiesRequest(language, content, null, null, unit, options);
         return sendPostRequest(request, urlBase + ENTITIES_SERVICE_PATH, EntitiesResponse.class);
     }
@@ -470,7 +484,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public LinkedEntitiesResponse getLinkedEntities(InputStream inputStream, LanguageCode language)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         String encodedStr = DatatypeConverter.printBase64Binary(getBytes(inputStream));
         LinkedEntitiesRequest request = new LinkedEntitiesRequest(language, encodedStr, null, "text/html", null);
         return sendPostRequest(request, urlBase + ENTITIES_LINKED_SERVICE_PATH, LinkedEntitiesResponse.class);
@@ -489,7 +503,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public LinkedEntitiesResponse getLinkedEntities(URL url, LanguageCode language)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         LinkedEntitiesRequest request = new LinkedEntitiesRequest(language, null, url.toString(), null, null);
         return sendPostRequest(request, urlBase + ENTITIES_LINKED_SERVICE_PATH, LinkedEntitiesResponse.class);
     }
@@ -507,7 +521,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public LinkedEntitiesResponse getLinkedEntities(String content, LanguageCode language)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         LinkedEntitiesRequest request = new LinkedEntitiesRequest(language, content, null, null, null);
         return sendPostRequest(request, urlBase + ENTITIES_LINKED_SERVICE_PATH, LinkedEntitiesResponse.class);
     }
@@ -527,7 +541,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public LinkedEntitiesResponse getLinkedEntities(String content, LanguageCode language, InputUnit unit)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         LinkedEntitiesRequest request = new LinkedEntitiesRequest(language, content, null, null, unit);
         return sendPostRequest(request, urlBase + ENTITIES_LINKED_SERVICE_PATH, LinkedEntitiesResponse.class);
     }
@@ -546,7 +560,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public CategoriesResponse getCategories(InputStream inputStream, LanguageCode language, CategoriesOptions options)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         String encodedStr = DatatypeConverter.printBase64Binary(getBytes(inputStream));
         CategoriesRequest request = new CategoriesRequest(language, encodedStr, null, "text/html", null, options);
         return sendPostRequest(request, urlBase + CATEGORIES_SERVICE_PATH, CategoriesResponse.class);
@@ -566,7 +580,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public CategoriesResponse getCategories(URL url, LanguageCode language, CategoriesOptions options)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         CategoriesRequest request = new CategoriesRequest(language, null, url.toString(), null, null, options);
         return sendPostRequest(request, urlBase + CATEGORIES_SERVICE_PATH, CategoriesResponse.class);
     }
@@ -585,7 +599,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public CategoriesResponse getCategories(String content, LanguageCode language, CategoriesOptions options)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         CategoriesRequest request = new CategoriesRequest(language, content, null, null, null, options);
         return sendPostRequest(request, urlBase + CATEGORIES_SERVICE_PATH, CategoriesResponse.class);
     }
@@ -612,6 +626,117 @@ public final class RosetteAPI {
     }
 
     /**
+     * Returns each relationship extracted from the input.
+     *
+     * The response is a list of extracted relationships. A relationship contains
+     *
+     * predicate - usually the main verb, property or action that is expressed by the text
+     * arg1 - usually the subject, agent or main actor of the relationship
+     * arg2 [optional] - complements the predicate and is usually the object, theme or patient of the relationship
+     * arg3 [optional] - usually an additional object in ditransitive verbs
+     * adjuncts [optional] - contain all optional parts of a relationship which are not temporal or locative expressions
+     * locatives [optional] - usually express the locations the action expressed by the relationship took place
+     * temporals [ optional] - usually express the time in which the action expressed by the relationship took place
+     * confidence - a measure of quality of relationship extraction, between 0 - 1
+     *
+     * @param content, String containing the data.
+     * @param language Language of input if known (see {@link com.basistech.rosette.apimodel.LanguageCode}), or null.
+     * @param unit The unit of content (see {@link com.basistech.rosette.apimodel.InputUnit}).
+     *             Can be SENTENCE or DOC. If SENTENCE, the entire content is treated as one sentence.
+     * @param options RelationshipOptions
+     * @return RelationshipsResponse
+     * @throws RosetteAPIException - If there is a problem with the Rosette API request
+     * @throws IOException - If there is a commuincation or JSON serialization/deserialization error
+     */
+    public RelationshipsResponse getRelationships(String content, LanguageCode language, InputUnit unit,
+                                                  RelationshipOptions options) throws RosetteAPIException, IOException {
+        RelationshipsRequest request = new RelationshipsRequest(language, content, null, null, unit, options);
+        return sendPostRequest(request, urlBase + RELATIONSHIPS_SERVICE_PATH, RelationshipsResponse.class);
+    }
+
+    /**
+     * Returns each relationship extracted from the input.
+     *
+     * The response is a list of extracted relationships. A relationship contains
+     *
+     * predicate - usually the main verb, property or action that is expressed by the text
+     * arg1 - usually the subject, agent or main actor of the relationship
+     * arg2 [optional] - complements the predicate and is usually the object, theme or patient of the relationship
+     * arg3 [optional] - usually an additional object in ditransitive verbs
+     * adjuncts [optional] - contain all optional parts of a relationship which are not temporal or locative expressions
+     * locatives [optional] - usually express the locations the action expressed by the relationship took place
+     * temporals [ optional] - usually express the time in which the action expressed by the relationship took place
+     * confidence - a measure of quality of relationship extraction, between 0 - 1
+     *
+     * @param content, String containing the data.
+     * @param language Language of input if known (see {@link com.basistech.rosette.apimodel.LanguageCode}), or null.
+     * @param options RelationshipOptions
+     * @return RelationshipsResponse
+     * @throws RosetteAPIException - If there is a problem with the Rosette API request
+     * @throws IOException - If there is a commuincation or JSON serialization/deserialization error
+     */
+    public RelationshipsResponse getRelationships(String content, LanguageCode language, RelationshipOptions options)
+        throws RosetteAPIException, IOException {
+        RelationshipsRequest request = new RelationshipsRequest(language, content, null, null, null, options);
+        return sendPostRequest(request, urlBase + RELATIONSHIPS_SERVICE_PATH, RelationshipsResponse.class);
+    }
+
+    /**
+     * Returns each relationship extracted from the input.
+     *
+     * The response is a list of extracted relationships. A relationship contains
+     *
+     * predicate - usually the main verb, property or action that is expressed by the text
+     * arg1 - usually the subject, agent or main actor of the relationship
+     * arg2 [optional] - complements the predicate and is usually the object, theme or patient of the relationship
+     * arg3 [optional] - usually an additional object in ditransitive verbs
+     * adjuncts [optional] - contain all optional parts of a relationship which are not temporal or locative expressions
+     * locatives [optional] - usually express the locations the action expressed by the relationship took place
+     * temporals [ optional] - usually express the time in which the action expressed by the relationship took place
+     * confidence - a measure of quality of relationship extraction, between 0 - 1
+     *
+     * @param inputStream Input stream of file.
+     * @param language Language of input if known (see {@link com.basistech.rosette.apimodel.LanguageCode}), or null.
+     * @param options RelationshipOptions
+     * @return RelationshipsResponse
+     * @throws RosetteAPIException - If there is a problem with the Rosette API request
+     * @throws IOException - If there is a commuincation or JSON serialization/deserialization error
+     */
+    public RelationshipsResponse getRelationships(InputStream inputStream, LanguageCode language, RelationshipOptions options)
+        throws RosetteAPIException, IOException {
+        String encodedStr = DatatypeConverter.printBase64Binary(getBytes(inputStream));
+        RelationshipsRequest request = new RelationshipsRequest(language, encodedStr, null, "text/html", null, options);
+        return sendPostRequest(request, urlBase + RELATIONSHIPS_SERVICE_PATH, RelationshipsResponse.class);
+    }
+
+    /**
+     * Returns each relationship extracted from the input.
+     *
+     * The response is a list of extracted relationships. A relationship contains
+     *
+     * predicate - usually the main verb, property or action that is expressed by the text
+     * arg1 - usually the subject, agent or main actor of the relationship
+     * arg2 [optional] - complements the predicate and is usually the object, theme or patient of the relationship
+     * arg3 [optional] - usually an additional object in ditransitive verbs
+     * adjuncts [optional] - contain all optional parts of a relationship which are not temporal or locative expressions
+     * locatives [optional] - usually express the locations the action expressed by the relationship took place
+     * temporals [ optional] - usually express the time in which the action expressed by the relationship took place
+     * confidence - a measure of quality of relationship extraction, between 0 - 1
+     *
+     * @param url URL containing the data.
+     * @param language Language of input if known (see {@link com.basistech.rosette.apimodel.LanguageCode}), or null.
+     * @param options RelationshipOptions
+     * @return RelationshipsResponse
+     * @throws RosetteAPIException - If there is a problem with the Rosette API request
+     * @throws IOException - If there is a commuincation or JSON serialization/deserialization error
+     */
+    public RelationshipsResponse getRelationships(URL url, LanguageCode language, RelationshipOptions options)
+        throws RosetteAPIException, IOException {
+        RelationshipsRequest request = new RelationshipsRequest(language, null, url.toString(), null, null, options);
+        return sendPostRequest(request, urlBase + RELATIONSHIPS_SERVICE_PATH, RelationshipsResponse.class);
+    }
+
+    /**
      * Analyzes the positive and negative sentiment expressed by the input.
      *
      * The response contains sentiment analysis results.
@@ -624,7 +749,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public SentimentResponse getSentiment(InputStream inputStream, LanguageCode language, SentimentOptions options)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         String encodedStr = DatatypeConverter.printBase64Binary(getBytes(inputStream));
         SentimentRequest request = new SentimentRequest(language, encodedStr, null, "text/html", null, options);
         return sendPostRequest(request, urlBase + SENTIMENT_SERVICE_PATH, SentimentResponse.class);
@@ -643,7 +768,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public SentimentResponse getSentiment(URL url, LanguageCode language, SentimentOptions options)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         SentimentRequest request = new SentimentRequest(language, null, url.toString(), null, null, options);
         return sendPostRequest(request, urlBase + SENTIMENT_SERVICE_PATH, SentimentResponse.class);
     }
@@ -661,7 +786,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public SentimentResponse getSentiment(String content, LanguageCode language, SentimentOptions options)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         SentimentRequest request = new SentimentRequest(language, content, null, null, null, options);
         return sendPostRequest(request, urlBase + SENTIMENT_SERVICE_PATH, SentimentResponse.class);
     }
@@ -696,7 +821,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public TokensResponse getTokens(InputStream inputStream, LanguageCode language)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         String encodedStr = DatatypeConverter.printBase64Binary(getBytes(inputStream));
         MorphologyRequest request = new MorphologyRequest(language, encodedStr, null, "text/html", null, null);
         return sendPostRequest(request, urlBase + TOKENS_SERVICE_PATH, TokensResponse.class);
@@ -742,7 +867,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public TokensResponse getTokens(String content, LanguageCode language, InputUnit unit)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         MorphologyRequest request = new MorphologyRequest(language, content, null, null, unit, null);
         return sendPostRequest(request, urlBase + TOKENS_SERVICE_PATH, TokensResponse.class);
     }
@@ -757,7 +882,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public SentencesResponse getSentences(InputStream inputStream, LanguageCode language)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         String encodedStr = DatatypeConverter.printBase64Binary(getBytes(inputStream));
         MorphologyRequest request = new MorphologyRequest(language, encodedStr, null, "text/html", null, null);
         return sendPostRequest(request, urlBase + SENTENCES_SERVICE_PATH, SentencesResponse.class);
@@ -787,7 +912,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public SentencesResponse getSentences(String content, LanguageCode language)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         MorphologyRequest request = new MorphologyRequest(language, content, null, null, null, null);
         return sendPostRequest(request, urlBase + SENTENCES_SERVICE_PATH, SentencesResponse.class);
     }
@@ -804,7 +929,7 @@ public final class RosetteAPI {
      * @throws IOException - If there is a communication or JSON serialization/deserialization error.
      */
     public SentencesResponse getSentences(String content, LanguageCode language, InputUnit unit)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         MorphologyRequest request = new MorphologyRequest(language, content, null, null, unit, null);
         return sendPostRequest(request, urlBase + SENTENCES_SERVICE_PATH, SentencesResponse.class);
     }
@@ -814,7 +939,7 @@ public final class RosetteAPI {
      *
      * @return {@link com.basistech.rosette.apimodel.LanguageInfoResponse LanguageInfoResponse}
      * @throws RosetteAPIException Rosette specific exception
-     * @throws IOException
+     * @throws IOException General IO exception
      */
     public LanguageInfoResponse getLanguageInfo() throws RosetteAPIException, IOException {
         return sendGetRequest(urlBase + LANGUAGE_SERVICE_PATH + INFO_SERVICE_PATH, LanguageInfoResponse.class);
@@ -843,7 +968,7 @@ public final class RosetteAPI {
      * @throws RosetteAPIException
      */
     private <T extends Response> T sendGetRequest(String urlStr, Class<T> clazz)
-            throws IOException, RosetteAPIException {
+        throws IOException, RosetteAPIException {
         HttpURLConnection httpUrlConnection = openHttpURLConnection(urlStr);
         httpUrlConnection.setRequestMethod("GET");
         return clazz.cast(getResponse(httpUrlConnection, clazz));
@@ -861,7 +986,7 @@ public final class RosetteAPI {
      * @throws IOException
      */
     private <T extends Response> T sendPostRequest(Object request, String urlStr, Class<T> clazz)
-            throws RosetteAPIException, IOException {
+        throws RosetteAPIException, IOException {
         RosetteAPIException lastException = null;
         int numRetries = this.failureRetries;
         while (numRetries-- > 0) {
@@ -877,7 +1002,7 @@ public final class RosetteAPI {
                 if (e.getHttpStatusCode() < 500) {
                     throw e;
                 } else {
-                    lastException =e;
+                    lastException = e;
                 }
             }
         }
@@ -914,12 +1039,12 @@ public final class RosetteAPI {
      * @throws RosetteAPIException
      */
     private Response getResponse(HttpURLConnection httpUrlConnection, Class<? extends Response> clazz)
-            throws IOException, RosetteAPIException {
+        throws IOException, RosetteAPIException {
         int status = httpUrlConnection.getResponseCode();
         String encoding = httpUrlConnection.getContentEncoding();
         try (
-            InputStream stream = status != HTTP_OK ?
-                    httpUrlConnection.getErrorStream() : httpUrlConnection.getInputStream();
+            InputStream stream = status != HTTP_OK
+                    ? httpUrlConnection.getErrorStream() : httpUrlConnection.getInputStream();
             InputStream inputStream = "gzip".equalsIgnoreCase(encoding) ? new GZIPInputStream(stream) : stream
         ) {
             if (HTTP_OK != status) {
