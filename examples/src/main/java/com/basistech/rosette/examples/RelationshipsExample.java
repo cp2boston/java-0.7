@@ -9,7 +9,7 @@ import com.basistech.rosette.apimodel.RelationshipsResponse;
 public final class RelationshipsExample extends ExampleBase {
     public static void main(String[] args) {
         try {
-            String text = "The first men to reach the moon were Mr. Armstrong and his co-pilot, Col. Edwin E. Aldrin.";
+            String text = "Yesterday in Guatemala, the Supreme Court approved the attorney general's request to impeach President Otto Pérez Molina.";
 
             RosetteAPI rosetteApi = new RosetteAPI(getApiKeyFromSystemProperty());
             Relationships response = rosetteApi.getRelationships(text, null, null);
