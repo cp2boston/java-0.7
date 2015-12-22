@@ -9,7 +9,7 @@ import com.basistech.rosette.apimodel.RelationshipsResponse;
 public final class RelationshipsExample extends ExampleBase {
     public static void main(String[] args) {
         try {
-            String text = "Yesterday in Guatemala, the Supreme Court approved the attorney general's request to impeach President Otto Pérez Molina.";
+            String text = "Bill Murray is in the new Ghostbusters film!";
 
             RosetteAPI rosetteApi = new RosetteAPI(getApiKeyFromSystemProperty());
             Relationships response = rosetteApi.getRelationships(text, null, null);
