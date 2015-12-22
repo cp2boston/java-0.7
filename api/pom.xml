@@ -4,7 +4,7 @@
     <parent>
         <groupId>com.basistech.rosette</groupId>
         <artifactId>rosette-api-parent</artifactId>
-        <version>0.7.4-SNAPSHOT</version>
+        <version>0.7.1-SNAPSHOT</version>
     </parent>
     <artifactId>rosette-api</artifactId>
     <name>rosette-api</name>
@@ -45,7 +45,6 @@
             <plugin>
                 <groupId>org.apache.felix</groupId>
                 <artifactId>maven-bundle-plugin</artifactId>
-                <version>2.5.3</version>
                 <extensions>true</extensions>
                 <configuration>
                     <archive>
