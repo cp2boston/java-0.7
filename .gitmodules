@@ -1,0 +1,3 @@
+[submodule "api/src/test/resources/mock-data"]
+	path = api/src/test/resources/mock-data
+	url = https://github.com/rosette-api/mock-data
