@@ -11,7 +11,8 @@ import com.basistech.rosette.apimodel.NameTranslationResponse;
 public final class TranslatedNameExample extends ExampleBase {
     public static void main(String[] args) {
         try {
-            NameTranslationRequest request = new NameTranslationRequest("معمر محمد أبو منيار القذاف",
+            String translated_name_data = "معمر محمد أبو منيار القذاف";
+            NameTranslationRequest request = new NameTranslationRequest(translated_name_data,
                     null, null, null, null, LanguageCode.eng, null, null);
 
             RosetteAPI rosetteApi = new RosetteAPI(getApiKeyFromSystemProperty());
