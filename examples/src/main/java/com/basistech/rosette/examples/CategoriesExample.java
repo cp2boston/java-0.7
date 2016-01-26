@@ -14,7 +14,7 @@ import com.basistech.rosette.apimodel.CategoriesResponse;
 public final class CategoriesExample extends ExampleBase {
     public static void main(String[] args) {
         try {
-            URL docUrl = new URL("Sony Pictures is planning to shoot a good portion of the new "Ghostbusters" in Boston as well.");
+            URL docUrl = new URL("Sony Pictures is planning to shoot a good portion of the new "Ghostbusters" in Boston and Toledo as well.");
 
             RosetteAPI rosetteApi = new RosetteAPI(getApiKeyFromSystemProperty());
             CategoriesResponse response = rosetteApi.getCategories(docUrl, null, null);
