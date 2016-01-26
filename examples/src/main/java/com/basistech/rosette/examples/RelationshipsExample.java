@@ -9,10 +9,10 @@ import com.basistech.rosette.apimodel.RelationshipsResponse;
 public final class RelationshipsExample extends ExampleBase {
     public static void main(String[] args) {
         try {
-            String text = "Bill Murray is in the new Ghostbusters film!";
+            String relationships_text_data = "Bill Murray is in the new Ghostbusters film!";
 
             RosetteAPI rosetteApi = new RosetteAPI(getApiKeyFromSystemProperty());
-            Relationships response = rosetteApi.getRelationships(text, null, null);
+            RelationshipsResponse response = rosetteApi.getRelationships(relationships_text_data, null, null);
             System.out.println(responseToJson(response));
         } catch (Exception e) {
             e.printStackTrace();

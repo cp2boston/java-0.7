@@ -9,10 +9,10 @@ import com.basistech.rosette.apimodel.EntitiesResponse;
 public final class EntitiesExample extends ExampleBase {
     public static void main(String[] args) {
         try {
-            String text = "Bill Murray will appear in new Ghostbusters film: Dr. Peter Venkman was spotted filming a cameo in Boston this… http://dlvr.it/BnsFfS ";
+            String entities_text_data = "Bill Murray will appear in new Ghostbusters film: Dr. Peter Venkman was spotted filming a cameo in Boston, MA, this… http://dlvr.it/BnsFfS";
 
             RosetteAPI rosetteApi = new RosetteAPI(getApiKeyFromSystemProperty());
-            EntitiesResponse response = rosetteApi.getEntities(text, null, null);
+            EntitiesResponse response = rosetteApi.getEntities(entities_text_data, null, null);
             System.out.println(responseToJson(response));
         } catch (Exception e) {
             e.printStackTrace();
